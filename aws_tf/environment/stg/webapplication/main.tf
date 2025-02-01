@@ -27,6 +27,12 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias = "acm-region"
+  region = "ap-northeast-1"
+}
+
+
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
@@ -67,6 +73,22 @@ data "terraform_remote_state" "general" {
 /////////////// resource ///////////////
 
 
+module "tls_cert" {
+  source = "../../../my_modules/tls_cert"
+  providers = {
+    aws.acm-region = aws.acm-region
+  }
+  domain_name = "api.${data.terraform_remote_state.general.outputs.route53_zone_name}"  
+  route53_zone_id = data.terraform_remote_state.general.outputs.route53_zone_id
+}
+
+module "dns_zone" {
+  source = "../../../my_modules/dns"
+  domain_name = "api.${data.terraform_remote_state.general.outputs.route53_zone_name}"  
+  route53_zone_id = data.terraform_remote_state.general.outputs.route53_zone_id
+  alias_domain_name = module.compute.api_alb_endpoint
+  alias_zone_id = module.compute.api_alb_zone_id
+}
 
 
 module "compute" {
@@ -82,7 +104,9 @@ module "compute" {
   key_name           = var.key_name
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
   subnet_ids         = data.terraform_remote_state.network.outputs.subnet_ids
-  web_security_group_id = data.terraform_remote_state.network.outputs.web_security_group_id
+  //web_security_group_id = data.terraform_remote_state.network.outputs.web_security_group_id
   api_security_group_id = data.terraform_remote_state.network.outputs.api_security_group_id
   alb_security_group_id = data.terraform_remote_state.network.outputs.alb_security_group_id
+  tls_cert_arn = module.tls_cert.acm_certificate_arn
 }
+

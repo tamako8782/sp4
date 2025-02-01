@@ -6,9 +6,9 @@ output "subnet_ids" {
   value = module.network.subnet_ids
 }
 
-output "route_table_web_id" {
-  value = module.network.route_table_web_id
-}
+//output "route_table_web_id" {
+//  value = module.network.route_table_web_id
+//}
 
 output "route_table_alb_id" {
   value = module.network.route_table_alb_id
@@ -26,6 +26,6 @@ output "alb_security_group_id" {
   value = module.network.alb_security_group_id
 }
 
-output "web_security_group_id" {
-  value = module.network.web_security_group_id
-}
+//output "web_security_group_id" {
+//  value = module.network.web_security_group_id
+//}

@@ -46,14 +46,14 @@ resource "aws_subnet" "sprint_sub" {
 }
 
 
-# ルートテーブルの作成(web)
+//# ルートテーブルの作成(web)
 
-resource "aws_route_table" "sprint_route_table_web" {
-  vpc_id = aws_vpc.sprint_vpc.id
-  tags = {
-    Name = "web-routetable"
-  }
-}
+//resource "aws_route_table" "sprint_route_table_web" {
+//  vpc_id = aws_vpc.sprint_vpc.id
+//  tags = {
+//    Name = "web-routetable"
+//  }
+//}
 
 # ルートテーブルの作成(alb)
 resource "aws_route_table" "sprint_route_table_alb" {
@@ -65,11 +65,11 @@ resource "aws_route_table" "sprint_route_table_alb" {
 
 # インターネットゲートウェイ向けのルート(web)
 
-resource "aws_route" "sprint_web_route" {
-  route_table_id         = aws_route_table.sprint_route_table_web.id
-  gateway_id             = aws_internet_gateway.sprint_igw.id
-  destination_cidr_block = "0.0.0.0/0"
-}
+//resource "aws_route" "sprint_web_route" {
+//  route_table_id         = aws_route_table.sprint_route_table_web.id
+//  gateway_id             = aws_internet_gateway.sprint_igw.id
+//  destination_cidr_block = "0.0.0.0/0"
+//}
 
 # インターネットゲートウェイ向けのルート(alb)
 
@@ -81,16 +81,16 @@ resource "aws_route" "sprint_alb_route" {
 
 
 
-# ルートテーブルとサブネットの関連付け(web)
-resource "aws_route_table_association" "sprint_route_asso_igw_web" {
-  for_each = {
-    for key, subnet in aws_subnet.sprint_sub :
-    key => subnet if contains(["web-subnet-01", "web-subnet-02"], subnet.tags["Name"])
-  }
+//# ルートテーブルとサブネットの関連付け(web)
+//resource "aws_route_table_association" "sprint_route_asso_igw_web" {
+//  for_each = {
+//    for key, subnet in aws_subnet.sprint_sub :
+//    key => subnet if contains(["web-subnet-01", "web-subnet-02"], subnet.tags["Name"])
+//  }
 
-  route_table_id = aws_route_table.sprint_route_table_web.id
-  subnet_id      = each.value.id
-}
+//  route_table_id = aws_route_table.sprint_route_table_web.id
+//  subnet_id      = each.value.id
+//}
 
 # ルートテーブルとサブネットの関連付け(alb)
 resource "aws_route_table_association" "sprint_route_asso_igw_alb" {
@@ -114,9 +114,9 @@ output "subnet_ids" {
   value = {for key, subnet in aws_subnet.sprint_sub : subnet.tags.Name => subnet.id}
 }
 
-output "route_table_web_id" {
-  value = aws_route_table.sprint_route_table_web.id
-}
+//output "route_table_web_id" {
+//  value = aws_route_table.sprint_route_table_web.id
+//}
 
 output "route_table_alb_id" {
   value = aws_route_table.sprint_route_table_alb.id

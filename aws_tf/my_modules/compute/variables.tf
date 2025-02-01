@@ -45,14 +45,18 @@ variable "key_name" {
   default = "yama-key-2025"
 }
 
-variable "web_security_group_id" {
-  type = string
-}
+//variable "web_security_group_id" {
+//  type = string
+//}
 
 variable "api_security_group_id" {
   type = string
 }
 
 variable "alb_security_group_id" {
+  type = string
+}
+
+variable "tls_cert_arn" {
   type = string
 }

@@ -8,10 +8,10 @@ data "aws_ssm_parameter" "ami" {
 
 ////////////////////// locals //////////////////////
 
-locals {
-  web_subnet_ids = [for name,id in var.subnet_ids : id if contains(["web-subnet-01", "web-subnet-02"], name)]
-}
-
+//locals {
+//  web_subnet_ids = [for name,id in var.subnet_ids : id if contains(["web-subnet-01", "web-subnet-02"], name)]
+//}
+//
 
 locals {
   api_subnet_ids = [for name,id in var.subnet_ids : id if contains(["api-subnet-01", "api-subnet-02"], name)]
@@ -29,48 +29,73 @@ locals {
 ////////////////////// resource //////////////////////
 
 
-resource "aws_launch_template" "web_launch_template" {
-  name = "web-launch-template"
-  image_id = data.aws_ssm_parameter.ami.value
-  instance_type = var.instance_type
-  vpc_security_group_ids = [var.web_security_group_id]
-  key_name = aws_key_pair.key_pair.key_name
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    yum update -y
-    yum install -y git nginx
-    systemctl enable nginx
-    systemctl start nginx
-    git clone https://github.com/tamako8782/sp4.git
-    rm -rf /usr/share/nginx/html/*
-    mv sp4/web/src/* /usr/share/nginx/html/
-    cd /usr/share/nginx/html/
-    sed -i 's|const apiIp = "APIIPADDRESS"|const apiIp = "${aws_lb.api_nlb.dns_name}"|' /usr/share/nginx/html/index.js
-    systemctl restart nginx
-    EOF
-  )
+//resource "aws_launch_template" "web_launch_template" {
+//  name = "web-launch-template"
+//  image_id = data.aws_ssm_parameter.ami.value
+//  instance_type = var.instance_type
+//  vpc_security_group_ids = [var.web_security_group_id]
+//  key_name = aws_key_pair.key_pair.key_name
+//  user_data = base64encode(<<-EOF
+//    #!/bin/bash
+//    yum update -y
+//    yum install -y git nginx
+//    systemctl enable nginx
+//    systemctl start nginx
+//    git clone https://github.com/tamako8782/sp4.git
+//    rm -rf /usr/share/nginx/html/*
+//    mv sp4/web/src/* /usr/share/nginx/html/
+//    cd /usr/share/nginx/html/
+//    sed -i 's|const apiIp = "APIIPADDRESS"|const apiIp = "${aws_lb.api_nlb.dns_name}"|' /usr/share/nginx/html/index.js
+//    systemctl restart nginx
+//    EOF
+//  )
+//}
+//
+//
+//resource "aws_autoscaling_group" "web_autoscaling_group" {
+//  name = "web-autoscaling-group"
+//  launch_template {
+//    id = aws_launch_template.web_launch_template.id
+//    version = "$Latest"
+//  }
+//  min_size = 2
+//  max_size = 4
+//  
+//  target_group_arns = [aws_lb_target_group.web_alb_target_group.arn]
+//
+//  vpc_zone_identifier = local.web_subnet_ids
+//
+//  tag {
+//      key = "Name"
+//      value = "web-server"
+//      propagate_at_launch = true
+//    }
+//
+//}
+resource "aws_iam_role" "api_ssm_role" {
+  name = "api-ssm-session-manager-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
 }
 
+resource "aws_iam_policy_attachment" "api_ssm_attach" {
+  name       = "api-ssm-attach"
+  roles      = [aws_iam_role.api_ssm_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
 
-resource "aws_autoscaling_group" "web_autoscaling_group" {
-  name = "web-autoscaling-group"
-  launch_template {
-    id = aws_launch_template.web_launch_template.id
-    version = "$Latest"
-  }
-  min_size = 2
-  max_size = 4
-  
-  target_group_arns = [aws_lb_target_group.web_alb_target_group.arn]
-
-  vpc_zone_identifier = local.web_subnet_ids
-
-  tag {
-      key = "Name"
-      value = "web-server"
-      propagate_at_launch = true
-    }
-
+resource "aws_iam_instance_profile" "api_ssm_profile" {
+  name = "api-ssm-instance-profile"
+  role = aws_iam_role.api_ssm_role.name
 }
 
 
@@ -80,6 +105,9 @@ resource "aws_launch_template" "api_launch_template" {
   instance_type = var.instance_type
   vpc_security_group_ids = [var.api_security_group_id]
   key_name = aws_key_pair.key_pair.key_name
+  iam_instance_profile {
+    name = aws_iam_instance_profile.api_ssm_profile.name
+  }
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
@@ -88,6 +116,9 @@ resource "aws_launch_template" "api_launch_template" {
     yum install -y mysql
     systemctl start mysqld
     systemctl enable mysqld
+    yum install -y amazon-ssm-agent
+    systemctl enable amazon-ssm-agent
+    systemctl start amazon-ssm-agent
     git clone https://github.com/tamako8782/sp4.git
     cat <<EOT >> /sp4/api/.env
     DB_USER=${var.db_username}
@@ -97,7 +128,7 @@ resource "aws_launch_template" "api_launch_template" {
     DB_NAME=${var.db_name}
     EOT
     
-     ./sp4/api/api_for_linux_amd4 
+     ./sp4/api/api_for_linux_amd3
   EOF
   )
 }
@@ -110,7 +141,7 @@ resource "aws_autoscaling_group" "api_autoscaling_group" {
   }
   min_size = 2
   max_size = 4
-  target_group_arns = [aws_lb_target_group.api_nlb_target_group.arn]
+  target_group_arns = [aws_lb_target_group.api_alb_target_group.arn]
 
   vpc_zone_identifier = local.api_subnet_ids
 
